@@ -1,0 +1,50 @@
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
+from datetime import datetime
+
+# Scrape the data for today's NBA games
+url = 'https://www.nba.com/games'
+response = requests.get(url)
+soup = BeautifulSoup(response.text, 'html.parser')
+game_cards = soup.find_all('div', class_='GameCard__gameCard___3QmBz')
+
+# Extract the data for each game
+games_data = []
+for game_card in game_cards:
+    home_team = game_card.find('div', class_='GameCard__homeTeamName___1W4x4').text
+    away_team = game_card.find('div', class_='GameCard__awayTeamName___27pt9').text
+    start_time = game_card.find('div', class_='GameCard__date___1HrjO').text
+    games_data.append([home_team, away_team, start_time])
+
+# Convert the data to a pandas DataFrame
+df = pd.DataFrame(games_data, columns=['Home', 'Away', 'Start Time'])
+
+# Save the data to a CSV file
+file_name = f'nba_data_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.csv'
+df.to_csv(file_name, index=False)
+
+# Use the data to predict the winner of each game using a neural network model
+# Load the data from the CSV file
+df = pd.read_csv(file_name)
+
+# Convert the team names to one-hot encoded vectors
+team_data = pd.concat([pd.get_dummies(df['Home']), pd.get_dummies(df['Away'])], axis=1)
+
+# Load the neural network model
+model = load_model('nba_model.h5')
+
+# Make predictions using the model
+predictions = model.predict(team_data)
+
+# Extract the predicted winner for each game
+predicted_winners = []
+for prediction in predictions:
+    if prediction[0] > prediction[1]:
+        predicted_winners.append(df['Home'])
+    else:
+        predicted_winners.append(df['Away'])
+
+# Print the predicted winners
+for i, row in df.iterrows():
+    print(f"{row['Home']} vs {row['Away']}: {predicted_winners[i]}")
